@@ -45,6 +45,17 @@ else
     echo "✓ Git repository initialized"
 fi
 
+# Configure Git user if not already configured
+echo -e "${YELLOW}Step 2.1: Configuring Git user (if needed)${NC}"
+if ! git config user.name >/dev/null 2>&1; then
+    git config user.name "Euystacio Foundation"
+    echo "✓ Git user name configured"
+fi
+if ! git config user.email >/dev/null 2>&1; then
+    git config user.email "foundation@euystacio.org"
+    echo "✓ Git user email configured"
+fi
+
 # Step 3: Add all files
 echo -e "${YELLOW}Step 3: Adding all files to Git${NC}"
 git add .
@@ -95,9 +106,15 @@ fi
 echo -e "${YELLOW}Step 7: Pushing to GitHub${NC}"
 # Check if we have any commits to push
 if git rev-parse --verify HEAD >/dev/null 2>&1; then
-    # Set upstream and push
-    git push -u origin "$BRANCH_NAME"
-    echo "✓ Successfully pushed to GitHub (origin/$BRANCH_NAME)"
+    # Attempt to set upstream and push
+    if git push -u origin "$BRANCH_NAME" 2>/dev/null; then
+        echo "✓ Successfully pushed to GitHub (origin/$BRANCH_NAME)"
+        PUSH_SUCCESS=true
+    else
+        echo -e "${YELLOW}⚠️  Push to GitHub failed - likely due to authentication${NC}"
+        echo -e "${YELLOW}   This is normal if you need to set up authentication${NC}"
+        PUSH_SUCCESS=false
+    fi
 else
     echo -e "${RED}❌ No commits found - cannot push empty repository${NC}"
     exit 1
@@ -106,7 +123,12 @@ fi
 # Step 8: Print confirmation message
 echo ""
 echo "============================================================================="
-echo -e "${GREEN}🎉 SUCCESS: Git repository initialization and GitHub push completed!${NC}"
+if [ "$PUSH_SUCCESS" = true ]; then
+    echo -e "${GREEN}🎉 SUCCESS: Git repository initialization and GitHub push completed!${NC}"
+else
+    echo -e "${GREEN}🎉 SUCCESS: Git repository initialization completed!${NC}"
+    echo -e "${YELLOW}📝 Note: Push to GitHub requires authentication setup${NC}"
+fi
 echo ""
 echo -e "${BLUE}Repository Details:${NC}"
 echo "  📁 Project Directory: $PROJECT_DIR"
@@ -114,8 +136,18 @@ echo "  🌐 Remote Repository: $REMOTE_REPO_URL"
 echo "  🌿 Branch: $BRANCH_NAME"
 echo "  💬 Commit Message: $COMMIT_MESSAGE"
 echo ""
-echo -e "${GREEN}The Euystacio Foundation & Sentimento Codex package has been successfully"
-echo -e "initialized and pushed to GitHub! 🚀${NC}"
+if [ "$PUSH_SUCCESS" = true ]; then
+    echo -e "${GREEN}The Euystacio Foundation & Sentimento Codex package has been successfully"
+    echo -e "initialized and pushed to GitHub! 🚀${NC}"
+else
+    echo -e "${GREEN}The Euystacio Foundation & Sentimento Codex package has been successfully"
+    echo -e "initialized locally! 🚀${NC}"
+    echo ""
+    echo -e "${YELLOW}To complete the GitHub push, please:${NC}"
+    echo "  1. Set up GitHub authentication (SSH key or Personal Access Token)"
+    echo "  2. Run: git push -u origin $BRANCH_NAME"
+    echo "  3. Or configure your Git credentials and re-run this script"
+fi
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "  • Visit your GitHub repository to verify the upload"
