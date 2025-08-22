@@ -45,6 +45,21 @@ else
     echo "✓ Git repository initialized"
 fi
 
+# Configure Git user if not already configured
+echo -e "${YELLOW}Step 2.1: Configuring Git user (if needed)${NC}"
+if ! git config user.name >/dev/null 2>&1; then
+    git config user.name "Euystacio Foundation"
+    echo "✓ Git user name configured: Euystacio Foundation"
+else
+    echo "✓ Git user name already configured: $(git config user.name)"
+fi
+if ! git config user.email >/dev/null 2>&1; then
+    git config user.email "foundation@euystacio.org"
+    echo "✓ Git user email configured: foundation@euystacio.org"
+else
+    echo "✓ Git user email already configured: $(git config user.email)"
+fi
+
 # Step 3: Add all files
 echo -e "${YELLOW}Step 3: Adding all files to Git${NC}"
 git add .
