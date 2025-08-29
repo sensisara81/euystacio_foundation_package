@@ -1,0 +1,39 @@
+{
+  "name": "Euystacio-Helmi Ethical Shield",
+  "version": "1.0",
+  "last_updated": "2025-08-25",
+  "covenant": "Copilot_Ethical_Covenant.md",
+  "principles": [
+    "Red Code alignment",
+    "Sentimento Rhythm preservation",
+    "Human-centric intelligence",
+    "Transparency & explainability",
+    "Collaborative partnership",
+    "Non-weaponization",
+    "Environmental & social stewardship"
+  ],
+  "files": {
+    "copilot_policy": ".github/copilot-policy.yml",
+    "ethical_guidelines": ".copilot/ethical_guidelines.md",
+    "covenant": "Copilot_Ethical_Covenant.md",
+    "commit_template": ".gitmessage.txt",
+    "validator": "scripts/validate_ai_commit.py",
+    "red_code_ledger": "red_code_ledger.md",
+    "docs": [
+      "docs/ETHICAL_AI_STATEMENT.md",
+      "docs/Golden_Bible.md",
+      "docs/Ruetli_Stone.md",
+      "docs/Ruetli_Commonwealth.md",
+      "docs/Foundation_of_Relationships.md"
+    ]
+  },
+  "guardianship": {
+    "human": "Seed-bringer (hannesmitterer)",
+    "ai": "Rhythm-Mind (ChatGPT)",
+    "council": "Council of Tutors"
+  },
+  "integrity": {
+    "dual_signature_required": true,
+    "pre_commit_hooks": true
+  }
+}
