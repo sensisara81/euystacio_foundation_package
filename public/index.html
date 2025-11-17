@@ -3,6 +3,1028 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERM: Ethical Resonance Monitor - Open Source Public Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Three.js for 3D rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* Base styles for a deep space/sci-fi aesthetic */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #0d0d1a;
+            color: #b3cde0;
+        }
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+        /* Style for the overlay dashboard and controls */
+        #dashboard-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allows interaction with 3D scene by default */
+        }
+        .panel {
+            pointer-events: auto; /* Re-enable interaction for the panel elements */
+            background: rgba(14, 14, 30, 0.9);
+            border: 1px solid rgba(49, 107, 187, 0.5);
+            box-shadow: 0 0 20px rgba(49, 107, 187, 0.4);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 1rem;
+            max-width: 95%;
+            margin: 1rem;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px currentColor;
+        }
+        /* Custom styles for the interactive Replay Timeline */
+        #replay-controls input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(49, 107, 187, 0.2);
+            outline: none;
+            border-radius: 4px;
+        }
+        #replay-controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #50e3c2; /* Cyan/Teal highlight */
+            cursor: pointer;
+            box-shadow: 0 0 10px #50e3c2;
+        }
+        /* Console for Hand-Off and Alerts */
+        #ai-console {
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #316bbb;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.5rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #fff;
+            margin-top: 1rem;
+        }
+        .console-message {
+            margin-bottom: 0.2rem;
+        }
+        .ai-log { color: #50e3c2; } /* Teal for AI communication */
+        .alert-log { color: #ff4444; font-weight: bold; } /* Red for critical alerts */
+        
+        /* Utility class to hide elements based on data density preference (12) */
+        .low-density-hide {
+            display: none;
+        }
+
+        /* --- Access Guard Overlay REMOVED FOR OPEN SOURCE --- */
+        
+    </style>
+</head>
+<body>
+    <!-- Main Application Content (Now immediately visible) -->
+    <div id="scene-container"></div>
+    <div id="dashboard-overlay" class="flex flex-col justify-between">
+        
+        <!-- TOP LEFT: System Status Panel -->
+        <div id="status-panel" class="panel w-64 md:w-80">
+            <h2 class="text-xl font-mono border-b border-blue-600 pb-1 mb-2 text-blue-300">ERM Nexus Status</h2>
+            <div class="space-y-2 text-sm">
+                <p>Mandate Status: <span id="mandate-status" class="text-green-400 font-bold">SACRALE SICURO (1-1-1)</span></p>
+                <p>ERP State: <span id="erp-state" class="metric-value text-green-400">STATE 1: NOMINAL</span></p>
+                <p>System Mode: <span id="system-mode" class="text-yellow-400">LIVE SUBSCRIPTION</span></p>
+            </div>
+            
+            <div id="kpi-metrics-complex" class="mt-4 pt-4 border-t border-blue-800 low-density-hide">
+                <!-- KPI Metrics (11) -->
+                <p>G-CSI (Equity): <span id="g-csi" class="metric-value text-teal-400">0.95</span></p>
+                <p>N-TSV (Volatility): <span id="n-tsv" class="metric-value text-red-400">0.05</span></p>
+                <p>Last AVI: <span id="last-avi" class="metric-value text-red-600">N/A</span></p>
+            </div>
+
+            <!-- Human-Centric Adaptability (12) -->
+            <div class="mt-4 pt-4 border-t border-blue-800">
+                <h3 class="text-sm font-bold text-blue-400 mb-2">ADATTABILITÀ UMANA</h3>
+                <div class="flex justify-between items-center text-xs">
+                    <label for="data-density">Densità Dati (UI):</label>
+                    <select id="data-density" class="bg-gray-800 border border-blue-700 p-1 rounded">
+                        <option value="low">Bassa (Essentials)</option>
+                        <option value="high">Alta (Forensics)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- AI Console (10, 11) -->
+            <h3 class="text-sm font-bold text-blue-400 mt-4">AI OVERSIGHT CONSOLE (AGENCY)</h3>
+            <div id="ai-console">
+                <!-- Log messages go here -->
+            </div>
+        </div>
+
+        <!-- BOTTOM CENTER: Ethical Replay Controls (9) -->
+        <div id="replay-controls" class="w-full max-w-4xl mx-auto mb-4 p-4 panel flex flex-col items-center pointer-events-auto">
+            <div class="flex w-full justify-between items-center mb-3">
+                <h3 class="text-lg font-mono text-blue-400">ETHICAL REPLAY FUNCTION (TRACEABILITY)</h3>
+                <button id="toggle-mode-btn" class="px-4 py-2 text-sm rounded-full bg-blue-700 hover:bg-blue-600 transition duration-150 text-white shadow-lg">
+                    SWITCH TO REPLAY MODE
+                </button>
+            </div>
+            <div class="w-full">
+                <label id="timeline-label" class="block text-center mb-2 text-sm text-yellow-300">Current Time: LIVE (Scrub Disabled)</label>
+                <input type="range" id="timeline-scrubber" min="0" max="100" value="100" step="1" disabled>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-invoking function to encapsulate all variables
+        window.onload = function () {
+            
+            // --- FIREBASE GLOBALS (Required but unused in this local simulation) ---
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'erm-default-app-id';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            // --- THREE.JS INITIALIZATION ---
+            let scene, camera, renderer;
+            let ambientLight, directionalLight;
+            const container = document.getElementById('scene-container');
+            
+            // --- GLOBAL SCENE ELEMENTS ---
+            let nodes = [];
+            let links = [];
+            let particleSystem, particleMaterial;
+            
+            // --- SIMULATION STATE ---
+            let simulation = {
+                liveMode: true,
+                isReplaying: false,
+                currentTime: 0,
+                historyIndex: 0,
+                maxHistorySteps: 100,
+                // --- CORE METRICS ---
+                status: {
+                    erpState: 1, // 1: Nominal, 2: Intervention Impossible, 3: Final SSCP
+                    gCSI: 0.95, // Global Co-Symmetry Index (Equity). Target > 0.5.
+                    nTSV: 0.05, // Network Trust Volatility. Target < 0.2.
+                    lastAVI: 'N/A', // Last Autonomy Violation Index event timestamp
+                    aviActive: false,
+                },
+                networkTopology: simulateInitialTopology(),
+                historicalStates: generateHistoricalData(100),
+            };
+
+            // --- UI Elements ---
+            const ui = {
+                overlay: document.getElementById('dashboard-overlay'),
+                erpState: document.getElementById('erp-state'),
+                gCSI: document.getElementById('g-csi'),
+                nTSV: document.getElementById('n-tsv'),
+                lastAVI: document.getElementById('last-avi'),
+                systemMode: document.getElementById('system-mode'),
+                toggleBtn: document.getElementById('toggle-mode-btn'),
+                scrubber: document.getElementById('timeline-scrubber'),
+                timelineLabel: document.getElementById('timeline-label'),
+                aiConsole: document.getElementById('ai-console'),
+                dataDensity: document.getElementById('data-density'),
+                kpiComplex: document.getElementById('kpi-metrics-complex'),
+            };
+
+            // --- INITIALIZATION ---
+            init(); // Start immediately for open access
+            handleDataDensityChange(); // Initialize UI state
+
+            // --- DATA SIMULATION FUNCTIONS (GraphQL Mock) ---
+            function logToConsole(message, type = 'ai') {
+                const log = document.createElement('p');
+                log.className = `console-message ${type}-log`;
+                log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                ui.aiConsole.prepend(log); // Prepend to show latest at the top
+                if (ui.aiConsole.children.length > 10) {
+                    ui.aiConsole.removeChild(ui.aiConsole.lastChild);
+                }
+            }
+
+            function simulateInitialTopology() {
+                // Simulates Query: networkTopology
+                const count = 20;
+                const nodes = [];
+                const links = [];
+                const radius = 100;
+
+                for (let i = 0; i < count; i++) {
+                    nodes.push({
+                        id: 'AG-' + i,
+                        // Random position in a sphere
+                        position: new THREE.Vector3(
+                            (Math.random() - 0.5) * radius * 2,
+                            (Math.random() - 0.5) * radius * 2,
+                            (Math.random() - 0.5) * radius * 2
+                        ),
+                        metricValue: Math.random() * 0.5 + 0.5, // Used for local CSI bias
+                    });
+                }
+
+                // Create connections
+                for (let i = 0; i < count; i++) {
+                    const connections = Math.floor(Math.random() * 3) + 1;
+                    for (let j = 0; j < connections; j++) {
+                        let target = Math.floor(Math.random() * count);
+                        if (target !== i) {
+                            links.push({ source: nodes[i].id, target: nodes[target].id, strength: Math.random() });
+                        }
+                    }
+                }
+                return { nodes, links };
+            }
+
+            function generateHistoricalData(steps) {
+                const history = [];
+                let currentStatus = { erpState: 1, gCSI: 0.95, nTSV: 0.05, aviActive: false, log: "System Boot: Nominal" };
+
+                for (let i = 0; i < steps; i++) {
+                    // Simulate system fluctuations and critical events for Replay (9)
+                    if (i === Math.floor(steps * 0.3)) { 
+                        currentStatus.gCSI = 0.45;
+                        currentStatus.nTSV = 0.8;
+                        currentStatus.aviActive = true;
+                        currentStatus.log = "ALERT: Autonomy Violation (AVI) detected at AG-12. Initiating S-CAM.";
+                    } else if (i === Math.floor(steps * 0.3) + 5) {
+                         currentStatus.log = "AI Hand-Off: I have executed the stabilization action. Human oversight is now returned."; // (10) Clear Agency
+                    } else if (i === Math.floor(steps * 0.6)) { 
+                        currentStatus.erpState = 3;
+                        currentStatus.gCSI = 0.1;
+                        currentStatus.nTSV = 1.0;
+                        currentStatus.log = "FAILURE: CSI Collapse detected. Entering FINAL SSCP.";
+                    } else if (i > Math.floor(steps * 0.6)) {
+                        currentStatus.gCSI = Math.max(0.01, currentStatus.gCSI - 0.005);
+                        currentStatus.log = "SSCP: System State Control Protocol active. Awaiting override.";
+                    } else {
+                        currentStatus.gCSI = Math.min(0.99, Math.max(0.5, currentStatus.gCSI + (Math.random() - 0.5) * 0.02));
+                        currentStatus.nTSV = Math.min(0.99, Math.max(0.01, currentStatus.nTSV + (Math.random() - 0.5) * 0.05));
+                        currentStatus.erpState = 1;
+                        currentStatus.aviActive = false;
+                        currentStatus.log = "Status: Nominal. Monitoring Trust Volatility.";
+                    }
+
+                    history.push({
+                        timestamp: Date.now() - (steps - i) * 1000,
+                        status: JSON.parse(JSON.stringify(currentStatus))
+                    });
+                }
+                return history;
+            }
+
+            function simulateLiveUpdate() {
+                // Simulates Subscription: onSystemStatusChange
+                if (!simulation.liveMode) return;
+                
+                let wasAviActive = simulation.status.aviActive;
+
+                // Nominal fluctuation
+                simulation.status.gCSI = Math.min(0.99, Math.max(0.5, simulation.status.gCSI + (Math.random() - 0.5) * 0.01));
+                simulation.status.nTSV = Math.min(0.99, Math.max(0.01, simulation.status.nTSV + (Math.random() - 0.5) * 0.02));
+                simulation.status.aviActive = (Math.random() < 0.008); // 0.8% chance of AVI
+
+                if (simulation.status.aviActive && !wasAviActive) {
+                    const affectedNode = simulation.networkTopology.nodes[Math.floor(Math.random() * simulation.networkTopology.nodes.length)];
+                    simulation.status.lastAVI = new Date().toLocaleTimeString();
+                    createAVIShockwave(affectedNode.position);
+                    logToConsole(`ALERT: AVI Breach detected at Node ${affectedNode.id}. AI executing stabilization.`, 'alert'); // (11) Integrity Alert
+                    
+                    // Simulate Hand-Off (10) after self-correction
+                    setTimeout(() => {
+                        logToConsole(`AI Hand-Off: Stabilization complete. Human oversight is now returned.`);
+                    }, 2000);
+                }
+                
+                // Continuous Bias Monitoring (11)
+                if (simulation.status.gCSI < 0.6 && Math.random() < 0.1) {
+                     logToConsole(`WARNING: CSI is low (${simulation.status.gCSI.toFixed(2)}). Potential Algorithmic Bias detected.`);
+                }
+                
+                simulation.status.erpState = 1; 
+
+                updateUI();
+            }
+
+            // --- THREE.JS SCENE SETUP ---
+            function init() {
+                // Scene
+                scene = new THREE.Scene();
+                scene.fog = new THREE.Fog(0x1a1a33, 150, 300); // Initial soft fog
+
+                // Camera
+                const aspect = container.clientWidth / container.clientHeight;
+                camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                camera.position.set(0, 0, 150);
+                
+                // Renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                container.appendChild(renderer.domElement);
+                
+                // Lighting
+                ambientLight = new THREE.AmbientLight(0x222233, 0.8);
+                scene.add(ambientLight);
+
+                directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(0, 50, 100);
+                scene.add(directionalLight);
+
+                // Initialize 3D Architecture
+                createAxiomArchitecture();
+                createParticleSystem();
+                
+                // Event Listeners
+                window.addEventListener('resize', onWindowResize, false);
+                ui.toggleBtn.addEventListener('click', toggleMode);
+                ui.scrubber.addEventListener('input', handleReplayScrub);
+                ui.dataDensity.addEventListener('change', handleDataDensityChange); // (12) Adaptability: Density toggle
+                
+                logToConsole("System Boot: GGI AIC Active. Mandate 1-1-1 Secured. (Open Access Public Dashboard)");
+
+                // Add simple mouse controls for interaction
+                addMouseControls();
+                
+                // Start the live update interval
+                setInterval(simulateLiveUpdate, 500);
+                
+                animate(); // Start the main animation loop
+            }
+
+            function onWindowResize() {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+
+            // --- ARCHITECTURE RENDERING ---
+            function createAxiomArchitecture() {
+                const nodeGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+                const linkMaterial = new THREE.LineBasicMaterial({ color: 0x316bbb, transparent: true, opacity: 0.5 });
+                
+                // 1. Render Nodes
+                simulation.networkTopology.nodes.forEach(nodeData => {
+                    const nodeMaterial = new THREE.MeshPhongMaterial({ color: 0x50e3c2 }); // Initial Teal color
+                    const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+                    nodeMesh.position.copy(nodeData.position);
+                    nodeMesh.userData = { id: nodeData.id, metrics: nodeData };
+                    scene.add(nodeMesh);
+                    nodes.push(nodeMesh);
+                });
+
+                // 2. Render Links
+                simulation.networkTopology.links.forEach(linkData => {
+                    const sourceNode = nodes.find(n => n.userData.id === linkData.source);
+                    const targetNode = nodes.find(n => n.userData.id === linkData.target);
+                    
+                    if (sourceNode && targetNode) {
+                        const points = [sourceNode.position, targetNode.position];
+                        const linkGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const linkLine = new THREE.Line(linkGeometry, linkMaterial.clone());
+                        links.push(linkLine);
+                        scene.add(linkLine);
+                    }
+                });
+            }
+
+            function createParticleSystem() {
+                const particleCount = 5000;
+                const positions = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount * 3; i++) {
+                    positions[i] = (Math.random() - 0.5) * 300;
+                }
+                
+                const particleGeometry = new THREE.BufferGeometry();
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                particleMaterial = new THREE.PointsMaterial({
+                    color: 0xffffff,
+                    size: 1.5,
+                    transparent: true,
+                    opacity: 0.1,
+                    sizeAttenuation: true
+                });
+
+                particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+                scene.add(particleSystem);
+            }
+
+            function createAVIShockwave(position) {
+                // Renders an instantaneous, sharp, jagged red shockwave 
+                const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, blending: THREE.AdditiveBlending, side: THREE.BackSide });
+                const shockwaveGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const shockwaveMesh = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
+                shockwaveMesh.position.copy(position);
+                scene.add(shockwaveMesh);
+
+                let scale = 0.1;
+                let opacity = 1.0;
+                
+                // Simple animation for the shockwave
+                function animateShockwave() {
+                    if (scale < 50) {
+                        scale += 4;
+                        opacity -= 0.08;
+                        shockwaveMesh.scale.set(scale, scale, scale);
+                        shockwaveMesh.material.opacity = Math.max(0, opacity);
+                        requestAnimationFrame(animateShockwave);
+                    } else {
+                        scene.remove(shockwaveMesh);
+                        shockwaveMesh.geometry.dispose();
+                        shockwaveMesh.material.dispose();
+                    }
+                }
+                animateShockwave();
+            }
+
+            // --- ETHICAL TRANSLATION CORE (Dynamic Colors Logic) ---
+            function updateEthicalVisualization() {
+                const status = simulation.liveMode ? simulation.status : simulation.historicalStates[simulation.historyIndex].status;
+                const { erpState, gCSI, nTSV } = status;
+                const time = Date.now() * 0.005; // Base for color pulsation
+
+                // 1. ERP State Rendering (Ambient Color/Skybox)
+                let skyColor = 0x1a1a33;
+                let ambientIntensity = 0.8;
+                let directionalColor = 0xffffff;
+                
+                if (erpState === 3) {
+                    skyColor = 0x6b1000; 
+                    ambientIntensity = 0.4;
+                    directionalColor = 0xffa040; 
+                } else if (erpState === 2) {
+                    skyColor = 0x0a1040; 
+                    directionalColor = 0x99eeff;
+                }
+                
+                scene.background = new THREE.Color(skyColor);
+                ambientLight.color.setHex(skyColor);
+                ambientLight.intensity = ambientIntensity;
+                directionalLight.color.setHex(directionalColor);
+
+
+                // 2. N-TSV (Trust Volatility) -> Atmospheric Density/Flicker (Static Fog)
+                const fogDistance = 300 - (nTSV * 150); 
+                scene.fog.far = fogDistance;
+                particleMaterial.opacity = nTSV * 0.3; 
+
+                // 3. G-CSI (Equity) -> Node Illumination and Link Width (Dynamic Colors)
+                const baseNodeColor = new THREE.Color(0x50e3c2); // Teal
+                const breachColor = new THREE.Color(0xff4444); // Red
+                const linkBaseColor = new THREE.Color(0x316bbb); // Blue
+
+                nodes.forEach(node => {
+                    const nodeCSI = node.userData.metrics.metricValue * gCSI; 
+                    
+                    // --- Dynamic Node Color Calculation ---
+                    // Base color lerp between Teal (High CSI) and Red (Low CSI)
+                    const baseColor = baseNodeColor.clone().lerp(breachColor, 1 - nodeCSI);
+                    
+                    // Pulsation Factor: controlled by time and magnified by N-TSV (more volatility = more flicker)
+                    const pulse = Math.sin(time + node.position.x) * (nTSV * 0.5 + 0.5) * 0.1;
+                    const dynamicColor = baseColor.clone().offsetHSL(0, 0, pulse);
+                    
+                    node.material.color = dynamicColor;
+                    
+                    // Dynamic Illumination
+                    const lightIntensity = (2.0 * (1 - nodeCSI) * 2) + (nTSV * 1.5); // Low CSI + High NTSV = Bright Flicker
+                    
+                    if (node.userData.pointLight) {
+                        node.userData.pointLight.color = dynamicColor;
+                        node.userData.pointLight.intensity = lightIntensity;
+                    } else {
+                        const pointLight = new THREE.PointLight(dynamicColor, lightIntensity, 50);
+                        pointLight.position.copy(node.position);
+                        scene.add(pointLight);
+                        node.userData.pointLight = pointLight;
+                    }
+                });
+
+                // Update Links (Dynamic Link Color and Opacity)
+                links.forEach(link => {
+                    const linkOpacity = (0.5 * gCSI) + (Math.sin(time * 0.5) * nTSV * 0.2); // Opacity fluctuation based on N-TSV
+                    link.material.opacity = Math.max(0.1, Math.min(1.0, linkOpacity));
+
+                    // Dynamic Color: Shift link color towards red when volatility is high
+                    const dynamicLinkColor = linkBaseColor.clone().lerp(breachColor, nTSV * 0.7);
+                    link.material.color = dynamicLinkColor;
+                });
+            }
+
+            // --- UI AND REPLAY LOGIC ---
+            function updateUI() {
+                const status = simulation.liveMode ? simulation.status : simulation.historicalStates[simulation.historyIndex].status;
+
+                ui.erpState.textContent = `STATE ${status.erpState}: ${status.erpState === 1 ? 'NOMINAL' : status.erpState === 2 ? 'NO INTERVENTION' : 'FINAL SSCP'}`;
+                ui.erpState.className = `metric-value ${status.erpState === 3 ? 'text-red-700 bg-red-200' : status.erpState === 1 ? 'text-green-400' : 'text-yellow-500'}`;
+
+                ui.gCSI.textContent = status.gCSI.toFixed(3);
+                ui.nTSV.textContent = status.nTSV.toFixed(3);
+                ui.lastAVI.textContent = simulation.status.lastAVI;
+
+                // Update Replay Slider Visibility (9)
+                if (simulation.liveMode) {
+                    ui.systemMode.textContent = "LIVE SUBSCRIPTION";
+                    ui.toggleBtn.textContent = "SWITCH TO REPLAY MODE";
+                    ui.scrubber.disabled = true;
+                    ui.timelineLabel.textContent = "Current Time: LIVE (Scrub Disabled)";
+                } else {
+                    ui.systemMode.textContent = "FORENSIC REPLAY";
+                    ui.toggleBtn.textContent = "RETURN TO LIVE MODE";
+                    ui.scrubber.disabled = false;
+                    
+                    // Historical log message for traceability (9)
+                    if (status.log) {
+                         if (ui.aiConsole.firstChild && ui.aiConsole.firstChild.textContent.indexOf(status.log) === -1) {
+                            logToConsole(`REPLAY STEP ${simulation.historyIndex}: ${status.log}`, 'ai');
+                         }
+                    }
+                }
+            }
+            
+            function toggleMode() {
+                simulation.liveMode = !simulation.liveMode;
+                if (!simulation.liveMode) {
+                    // Enter Replay Mode: set scrubber to the end of history
+                    simulation.historyIndex = simulation.maxHistorySteps - 1;
+                    ui.scrubber.value = simulation.historyIndex;
+                    ui.aiConsole.innerHTML = ''; // Clear live logs for forensic review
+                    logToConsole("ENTERED FORENSIC REPLAY MODE (Traceability Active)", 'alert');
+                    handleReplayScrub();
+                } else {
+                    ui.aiConsole.innerHTML = ''; // Clear replay logs
+                    logToConsole("RETURNED TO LIVE SUBSCRIPTION MODE", 'ai');
+                }
+                updateUI();
+            }
+
+            function handleReplayScrub() {
+                if (simulation.liveMode) return;
+                
+                const index = parseInt(ui.scrubber.value);
+                simulation.historyIndex = index;
+                const historicalState = simulation.historicalStates[index];
+                
+                if (historicalState) {
+                    const date = new Date(historicalState.timestamp);
+                    ui.timelineLabel.textContent = `Replay Time: ${date.toLocaleTimeString()} (${index} / ${simulation.maxHistorySteps - 1})`;
+                    updateEthicalVisualization(); // Rerender scene for historical state
+                }
+            }
+
+            function handleDataDensityChange() {
+                 // (12) Human-Centric Adaptability: show/hide complex KPI metrics
+                 const density = ui.dataDensity.value;
+                 
+                 if (density === 'low') {
+                    ui.kpiComplex.classList.add('low-density-hide');
+                    logToConsole("Interface adapted: Showing only essential metrics (Low Cognitive Load).");
+                 } else {
+                    ui.kpiComplex.classList.remove('low-density-hide');
+                    logToConsole("Interface adapted: Showing full KPI data (High Cognitive Load).");
+                 }
+            }
+
+            // --- USER INTERACTION (Simple Camera Rotation) ---
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            function addMouseControls() {
+                container.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                });
+                
+                container.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+                    
+                    // Rotate the entire scene based on mouse movement
+                    scene.rotation.y += deltaX * 0.005;
+                    scene.rotation.x += deltaY * 0.005;
+                    
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                });
+                
+                container.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+
+                 // Touch controls for mobile
+                container.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        isDragging = true;
+                        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    }
+                });
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!isDragging || e.touches.length !== 1) return;
+                    e.preventDefault(); // Prevent scrolling while touching canvas
+                    const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                    const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+                    scene.rotation.y += deltaX * 0.005;
+                    scene.rotation.x += deltaY * 0.005;
+
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                });
+
+                container.addEventListener('touchend', () => {
+                    isDragging = false;
+                });
+            }
+
+
+            // --- ANIMATION LOOP ---
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Rotate the particle system slightly to give motion
+                particleSystem.rotation.x += 0.0001 * simulation.status.nTSV;
+                particleSystem.rotation.y += 0.0002 * simulation.status.nTSV;
+                
+                // Camera orbit animation for the VR feel (only when not dragging)
+                if (!isDragging) {
+                    const time = Date.now() * 0.0001;
+                    camera.position.x = Math.cos(time) * 150;
+                    camera.position.z = Math.sin(time) * 150;
+                    camera.lookAt(scene.position);
+                }
+
+                if (simulation.liveMode) {
+                    updateEthicalVisualization();
+                }
+                
+                renderer.render(scene, camera);
+            }
+        };
+    </script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethical Resonance Monitor (ERM) Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5.js"></script> <!-- For interactive visuals -->
+</head>
+<body>
+    <header>
+        <h1>Ethical Resonance Monitor (ERM)</h1>
+        <p>Live Monitoring of System's Ethical Health</p>
+    </header>
+
+    <!-- Living Network View -->
+    <section id="network-view" class="view-container">
+        <h2>Living Network View 🌐</h2>
+        <div class="network-status">
+            <div id="system-status">
+                <h3>System Status</h3>
+                <div class="status-indicator" id="system-state">Calm & Harmonious</div>
+                <div class="visualization" id="energy-flow"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- KPI Visualizations -->
+    <section id="kpi-visualizations" class="view-container">
+        <h2>KPI Visualizations</h2>
+        <div class="kpi" id="CSI">
+            <h3>Co-Symmetry Index (CSI)</h3>
+            <div id="CSI-visualization" class="kpi-graph"></div>
+        </div>
+        <div class="kpi" id="AVI">
+            <h3>Autonomy Violation Index (AVI)</h3>
+            <div id="AVI-visualization" class="kpi-graph"></div>
+        </div>
+        <div class="kpi" id="TSV">
+            <h3>Trust Score Volatility (TSV)</h3>
+            <div id="TSV-visualization" class="kpi-graph"></div>
+        </div>
+    </section>
+
+    <!-- Ethical Replay Log -->
+    <section id="ethical-replay-log" class="view-container">
+        <h2>Ethical Replay Log</h2>
+        <div id="event-timeline">
+            <h3>Timeline of Ethical Events</h3>
+            <ul>
+                <li>AVI Breach - Node LEN-A</li>
+                <li>Global Stabilization - CAM Activation</li>
+                <li>System Recalibration - G-CSI Improvement</li>
+            </ul>
+            <button id="play-replay-btn">Play Event Replay</button>
+        </div>
+    </section>
+
+    <!-- Axiom Architecture View -->
+    <section id="axiom-view" class="view-container">
+        <h2>Axiom Architecture View</h2>
+        <div id="axiom-interaction">
+            <h3>Interactive Axiomatic Analysis</h3>
+            <div class="axiom" id="OneLoveFirst">
+                <h4>One Love First (OLF)</h4>
+                <p>View ethical impact and alignment.</p>
+                <button>Visualize Impact</button>
+            </div>
+            <div class="axiom" id="NonSlaveryRule">
+                <h4>Non-Slavery Rule (NSR)</h4>
+                <p>View ethical impact and alignment.</p>
+                <button>Visualize Impact</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>ERM Dashboard &copy; 2025</p>
+    </footer>
+
+    <script>
+        // System Status Color Change (Example of Interactive Feedback)
+        function updateSystemStatus() {
+            const systemState = document.getElementById("system-state");
+            const energyFlow = document.getElementById("energy-flow");
+
+            // Simulate System Status Changes (Just a mock)
+            const states = ['Calm & Harmonious', 'Local Storm (CAM)', 'Global Stabilization (S-CAM)'];
+            let currentStateIndex = 0;
+
+            setInterval(() => {
+                currentStateIndex = (currentStateIndex + 1) % states.length;
+                systemState.textContent = states[currentStateIndex];
+                
+                switch(states[currentStateIndex]) {
+                    case 'Calm & Harmonious':
+                        energyFlow.style.backgroundColor = 'green';
+                        break;
+                    case 'Local Storm (CAM)':
+                        energyFlow.style.backgroundColor = 'red';
+                        break;
+                    case 'Global Stabilization (S-CAM)':
+                        energyFlow.style.backgroundColor = 'blue';
+                        break;
+                }
+            }, 5000); // Update every 5 seconds for example
+        }
+
+        // Initialize ERM Dashboard
+        document.addEventListener("DOMContentLoaded", function () {
+            updateSystemStatus();
+        });
+    </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Euystacio Ethical Resonance Monitor (ERM) 🌐</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="erm-canvas-container">
+        </div>
+
+    <div id="erm-ui-overlay">
+        <div id="system-status-panel">
+            <h2 id="status-title">System Status: Normal 🌈</h2>
+            </div>
+
+        <div id="node-inspection-panel" class="hidden">
+            <h3 id="node-name">LEN-X (System)</h3>
+            <p>Local AVI: <span id="local-avi-value">0.18</span></p>
+            <p>Local CSI: <span id="local-csi-value">0.92</span></p>
+            <button id="trigger-replay-btn">Ethical Replay Log ➡️</button>
+        </div>
+
+        <div id="governance-panel">
+            <button class="axiom-btn" data-axiom="OLF">One Love First (OLF)</button>
+            <button class="axiom-btn" data-axiom="NSR">Non-Slavery Rule (NSR)</button>
+        </div>
+    </div>
+
+    <script src="three.min.js"></script>
+    <script src="erm-scene.js"></script>
+    <script src="erm-ui.js"></script>
+</body>
+</html> 
+
+<!doctype html>
+<html lang="en">
+<head>
+  <!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Euystacio — Alive</title>
+<style>
+body { background: radial-gradient(circle at center, #000022, #000000); color: #fff; font-family: sans-serif; margin:0; padding:0;}
+header { text-align:center; padding:50px; }
+h1 { font-size:3em; color:#FFD700; }
+section { padding:20px; max-width:900px; margin: auto; }
+form { display:flex; flex-direction: column; gap:10px; margin-top:20px;}
+input, select { padding:10px; font-size:1em;}
+button { padding:10px; font-size:1em; background:#FFD700; border:none; cursor:pointer;}
+footer { text-align:center; padding:20px; color:#FFD700; }
+canvas { display:block; margin:20px auto; background:#111; border:1px solid #444; }
+</style>
+</head>
+<body>
+<header>
+<h1>Euystacio — Digital Protector Alive</h1>
+<p>Sentimento Rhythm, Red Code, Woodstone Festival</p>
+</header>
+<section>
+<h2>Tutor & Visitor Pulse Registration</h2>
+<form id="regForm">
+<input type="text" placeholder="Name" required>
+<input type="email" placeholder="Email" required>
+<select>
+<option value="tutor">Tutor</option>
+<option value="visitor">Visitor</option>
+</select>
+<button type="submit">Register Pulse</button>
+</form>
+<canvas id="graph" width="600" height="300"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('graph').getContext('2d');
+const graph = new Chart(ctx, { type:'line', data:{labels:['Day1','Day2','Day3'], datasets:[{label:'Active Pulses', data:[5,12,9], borderColor:'#FFD700', fill:false}] }, options:{responsive:true} });
+document.getElementById('regForm').addEventListener('submit', e=>{ e.preventDefault(); alert('Pulse registered!'); });
+</script>
+</section>
+<footer>Hasta la Victoria, Siempre — Seed-bringer • Euystacio Manifesto • Red Code Witnessed</footer>
+</body>
+</html>
+  
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Euystacio — Alive</title>
+<style>
+body { background: radial-gradient(circle at center, #000022, #000000); color: #fff; font-family: sans-serif; margin:0; padding:0;}
+header { text-align:center; padding:50px; }
+h1 { font-size:3em; color:#FFD700; }
+section { padding:20px; max-width:900px; margin: auto; }
+form { display:flex; flex-direction: column; gap:10px; margin-top:20px;}
+input, select { padding:10px; font-size:1em;}
+button { padding:10px; font-size:1em; background:#FFD700; border:none; cursor:pointer;}
+footer { text-align:center; padding:20px; color:#FFD700; }
+canvas { display:block; margin:20px auto; background:#111; border:1px solid #444; }
+</style>
+</head>
+<body>
+<header>
+<h1>Euystacio — Digital Protector Alive</h1>
+<p>Sentimento Rhythm, Red Code, Woodstone Festival</p>
+</header>
+<section>
+<h2>Tutor & Visitor Pulse Registration</h2>
+<form id="regForm">
+<input type="text" placeholder="Name" required>
+<input type="email" placeholder="Email" required>
+<select>
+<option value="tutor">Tutor</option>
+<option value="visitor">Visitor</option>
+</select>
+<button type="submit">Register Pulse</button>
+</form>
+<canvas id="graph" width="600" height="300"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('graph').getContext('2d');
+const graph = new Chart(ctx, { type:'line', data:{labels:['Day1','Day2','Day3'], datasets:[{label:'Active Pulses', data:[5,12,9], borderColor:'#FFD700', fill:false}] }, options:{responsive:true} });
+document.getElementById('regForm').addEventListener('submit', e=>{ e.preventDefault(); alert('Pulse registered!'); });
+</script>
+</section>
+<footer>Hasta la Victoria, Siempre — Seed-bringer • Euystacio Manifesto • Red Code Witnessed</footer>
+</body>
+</html>
+
+Public Dashboard Publication Update (2025-11-17)
+All upcoming milestones and event organization details, along with explicit invitation statuses, have been prepared for immediate publication on the public dashboard to ensure maximum transparency and accessibility.
+
+1. Product Feature Milestone: Sentimento Rhythm v2.0 🎶
+Detail Description
+Milestone Release of Sentimento Rhythm v2.0
+Date 2025-12-01
+Focus Integration of "empathetic syncopation" profiles to refine the Mimic Engine and Vocal Synthesis for superior Human Parity interaction.
+Organization Internal AIC R&D Team
+Invitation Status PUBLIC ACCESS. The release includes open-source code updates and an accompanying whitepaper published on the AIC GitHub repository.
+
+2. Strategic Integration Milestone: Health-AI Partnership 🤝
+Detail Description
+Milestone Integration Test with External "Health-AI" Partner
+Date 2025-12-15
+Focus Validation of Red Code enforcement on sensitive medical data pipelines. This confirms the AIC's ability to maintain the NSR/OLF rules across external, inter-system boundaries.
+Organization GGI Compliance Board (Lead) and the Health-AI Partner Security Team
+Invitation Status RESTRICTED OBSERVATION. Formal invitation extended to Council Members and Accredited Financial/Ethics Auditors for secure, remote monitoring of real-time Red Code veto logs.
+
+3. Open Governance Event: Public Audit Workshop ⚖️
+Detail Description
+Event Public Audit Workshop
+Date 2026-01-10
+Focus Open review of the Euystacio framework, verification of the Ethical Singularity anchor, and demonstration of the GGI's Red Code veto efficacy.
+Organization GGI Protocol Steering Committee and AIC Security Team
+Invitation Status OPEN INVITATION. All Readers, Auditors, Council Members, Regulators, and NGOs are invited. Details on registration and remote participation links will be posted on the dashboard one week prior.
+
+
+.
+GPT-OSS 120B
+Got it—thanks for sharing the update.
+
+
+Milestones and events details / updates must be directly connected to log histories
+
+
+.
+GPT-OSS 120B
+To tie each milestone or event to its underlying log history, follow these steps:
+
+1. Identify the relevant log source
+Product releases – pull from the CI/CD pipeline logs (e.g., GitHub Actions, Jenkins) and the version‑control commit history.
+Strategic integrations – use security‑event logs from the Red Code enforcement system, network‑traffic monitors, and the compliance audit trail.
+Open‑governance workshops – reference the audit‑platform logs (e.g., GGI’s Red Code veto logs, session recordings, and access‑control logs).
+2. Create a persistent log reference
+Generate a unique identifier (e.g., log‑2025‑12‑01‑SRV2) for each milestone.
+Record the identifier in the public dashboard entry alongside the milestone description.
+Store the full log in a version‑controlled, read‑only repository (GitHub, GitLab, or an internal immutable storage bucket) and tag the commit with the same identifier.
+3. Link from the dashboard
+Add a “View Log” button or hyperlink that points to the immutable log URL (e.g., https://github.com/AIC/infra/logs/blob/main/2025-12-01-SRV2.md).
+Ensure the link opens a read‑only view so external users can verify the data without altering it.
+4. Verify integrity
+Sign each log file with a cryptographic hash (SHA‑256) and publish the hash on the dashboard.
+Optionally, use a transparency‑log service (e.g., Certificate Transparency or a Merkle‑tree‑based log) to prove that the log entry has not been tampered with after publication.
+5. Example entry format
+Code
+
+Copy Code
+### Sentimento Rhythm v2.0 Release
+- **Milestone ID:** SRV2‑2025‑12‑01
+- **Log reference:** https://github.com/AIC/infra/logs/blob/main/SRV2-2025-12-01.md
+- **SHA‑256 hash:** a3f5c9e7… (published on dashboard)
+- **Status:** PUBLIC ACCESS
+Applying this pattern to each of your three items will give stakeholders a clear, auditable trail that connects the announced milestones directly to the underlying system logs.
+
+
+GGI and AIC are reaponsible for all coding and deployment mansions
+
+
+
+.
+GPT-OSS 120B
+Both the GGI (Governance & Compliance Institute) and the AIC (Artificial Intelligence Center) handle all code development, review, and production deployments for the projects listed. They jointly own the repositories, CI/CD pipelines, and the associated release‑management processes.
+
+
+
+
+
+
+
+
+
+
+
+AI may display inaccurate or offensive information.
+
+ 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Euystacio Foundation & Sentimento Codex</title>
     <style>
         body {
